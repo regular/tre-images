@@ -41,10 +41,15 @@ setStyle(`
   .tre-images-editor .placeholder {
     color: #555;
   }
+  .tile > img.tre-image {
+    object-fit: contain;
+    width: 100%;
+    height: 100%;
+  }
 `)
 
 function renderImagePreview(file) {
-  return h('img', {
+  return h('img.tre-image', {
     src: srcObv(file)
   })
 }
@@ -58,16 +63,18 @@ function RenderImage(ssb) {
   })
   
   return function renderImage(kv, ctx) {
+    const content = kv.value && kv.value.content
+    if (!content) return
     const i18n = content.i18n || {}
     
-    const lang = ctx.lang || i18n.keys()[0]
+    const lang = ctx.lang || Object.keys(i18n)[0]
     const src = computed([blobPrefix, lang], (bp, l) => {
       if (!i18n[l]) l = i18n.keys()[0]
       if (!i18n[l]) return '' 
       return bp + encodeURIComponent(i18n[l].src)
     })
     
-    return h('img',{
+    return h('img.tre-image',{
       attributes: {
         src,
         "data-key": kv.key
