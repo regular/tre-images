@@ -73,8 +73,12 @@ function RenderImage(ssb) {
       if (!i18n[l]) return '' 
       return bp + encodeURIComponent(i18n[l].src)
     })
-    
+   
     return h('img.tre-image',{
+      style: ctx.where == 'stage' ? {
+        width: '100%',
+        height: '100%'
+      } : {},
       attributes: {
         src,
         "data-key": kv.key
