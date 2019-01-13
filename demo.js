@@ -1,6 +1,8 @@
 const {client} = require('tre-client')
 const Images = require('.')
 const h = require('mutant/html-element')
+const Value = require('mutant/value')
+const computed = require('mutant/computed')
 const setStyle = require('module-styles')('tre-images-demo')
 
 setStyle(`
@@ -19,19 +21,24 @@ client( (err, ssb, config) => {
     }
   })
 
-  const kv = {
-    key: 'fake-key',
-    value: {
-      content: {
-        type: 'image',
-        files: []
-      }
-    }
-  }
+  const key = config.tre.branches['exif-test']
+  const where = Value('editor')
 
-  document.body.appendChild(
-    renderImage(kv, {
-      where: 'editor'
-    })
-  )
+  ssb.revisions.get(key, (err, kv) => {
+    console.log(kv)
+    document.body.appendChild(h('.tre-images-demo', [
+      h('select', {
+        'ev-change': e => {
+          where.set(e.target.value)
+        }
+      }, [
+        h('option', {}, 'editor'),
+        h('option', {}, 'stage'),
+        h('option', {}, 'thumbnail')
+      ]),
+      computed(where, where => renderImage(kv, {
+        where
+      }))
+    ]))
+  })
 })

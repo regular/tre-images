@@ -32,6 +32,13 @@
           "branch": "%images",
           "root": "%root"
         }
+      },
+      "exif-test": {
+        "path": "exif.jpeg",
+        "content": {
+          "branch": "%images",
+          "root": "%root"
+        }
       }
     }
   },
@@ -43,6 +50,7 @@
     "debug": "^4.1.1",
     "exifreader": "^2.5.0",
     "imagesize": "^1.0.0",
+    "jpeg-marker-stream": "^1.0.0",
     "module-styles": "^1.0.0",
     "mutant": "^3.22.1",
     "pretty-bytes": "^5.1.0",
