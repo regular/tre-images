@@ -21,6 +21,18 @@
     "plugins": {
       "tre-client": true,
       "ssb-revisions": true
+    },
+    "importers": {
+      ".": true
+    },
+    "files": {
+      "beaver": {
+        "path": "beaver.jpg",
+        "content": {
+          "branch": "%images",
+          "root": "%root"
+        }
+      }
     }
   },
   "devDependencies": {
@@ -28,10 +40,12 @@
     "tre-client": "^1.1.0"
   },
   "dependencies": {
+    "debug": "^4.1.1",
+    "exifreader": "^2.5.0",
+    "imagesize": "^1.0.0",
     "module-styles": "^1.0.0",
     "mutant": "^3.22.1",
     "pretty-bytes": "^5.1.0",
-    "ssb-blob-files": "^1.1.3",
     "tre-dropzone": "^1.0.0",
     "tre-string": "^1.0.1"
   }

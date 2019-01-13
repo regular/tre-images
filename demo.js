@@ -1,9 +1,6 @@
 const {client} = require('tre-client')
 const Images = require('.')
 const h = require('mutant/html-element')
-const Value = require('mutant/value')
-const MutantArray = require('mutant/array')
-const MutantMap = require('mutant/map')
 const setStyle = require('module-styles')('tre-images-demo')
 
 setStyle(`
