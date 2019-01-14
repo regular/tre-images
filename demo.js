@@ -91,14 +91,16 @@ client( (err, ssb, config) => {
       ]),
       makeDivider(),
       makePane('70%', [
-        h('select', {
-          'ev-change': e => {
-            where.set(e.target.value)
-          }
-        }, [
-          h('option', 'editor'),
-          h('option', 'stage'),
-          h('option', 'thumbnail')
+        h('.bar', [
+          h('select', {
+            'ev-change': e => {
+              where.set(e.target.value)
+            }
+          }, [
+            h('option', 'editor'),
+            h('option', 'stage'),
+            h('option', 'thumbnail')
+          ])
         ]),
         computed([where, merged_kv], (where, kv) => kv ? renderImage(kv, {where}) : [])
       ])

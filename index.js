@@ -85,6 +85,9 @@ module.exports = function Render(ssb, opts) {
     if (where == 'editor') {
       return renderEditor()
     }
+    if (where == 'thumbnail') {
+      return renderThumbnail()
+    }
     return renderCanvasOrImg(publish)
 
     function renderCanvasOrImg(handleFile) {
@@ -105,6 +108,20 @@ module.exports = function Render(ssb, opts) {
             }
           }]
         }))
+      })
+    }
+
+    function renderThumbnail() {
+      const {thumbnail} = content
+      if (!thumbnail) {
+        return h('.tre-image-thumbnail', {}, 'no thumbnail')
+      }
+      const {meta, blob} = thumbnail
+      const {width, height} = meta
+      return h('img.tre-image-thumbnail', {
+        src: computed(blobPrefix, bp => `${bp}${encodeURIComponent(blob)}`),
+        width,
+        height
       })
     }
 
