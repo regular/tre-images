@@ -3,12 +3,14 @@ const h = require('mutant/html-element')
 const Value = require('mutant/value')
 const computed = require('mutant/computed')
 const watch = require('mutant/watch')
+const PropertySheet = require('tre-property-sheet')
 const prettyBytes = require('pretty-bytes')
 const setStyle = require('module-styles')('tre-images')
 const imagesize = require('imagesize')
 const debug = require('debug')('tre-image')
 const FileSource = require('tre-file-importer/file-source')
 const JpegMarkerStream = require('jpeg-marker-stream')
+const {makePane, makeDivider, makeSplitPane} = require('tre-split-pane')
 
 function dragAndDrop(onfile) {
   return {
@@ -67,6 +69,7 @@ module.exports = function Render(ssb, opts) {
   opts = opts || {}
 
   styles()
+  const renderPropertySheet = PropertySheet()
 
   const blobPrefix = Value()
   ssb.ws.getAddress((err, address) => {
@@ -139,11 +142,17 @@ module.exports = function Render(ssb, opts) {
 
     function renderEditor() {
       return h('.tre-images-editor', [
-        renderCanvasOrImg(handleFile),
-        computed(exifTagsObs, tags => {
-          if (!tags) return []
-          return renderTags(tags, 'Image Properties')
-        })
+        makeSplitPane({horiz: true}, [
+          makePane('60%', [
+            renderCanvasOrImg(handleFile),
+          ]),
+          makeDivider(),
+          makePane('40%', [
+            computed(exifTagsObs, tags => {
+              return renderPropertySheet(kv)
+            })
+          ])
+        ])
       ])
     }
 
@@ -231,7 +240,7 @@ function JpegParser(cb) {
 module.exports.importFile = importFile
 
 function extractThumbnail(ssb, file, exif, cb) {
-  //console.log('exif', exif)
+  console.log('exif', exif)
   const thumbnail = exif && exif.thumbnail
   //console.log('thumbnail', thumbnail)
   if (!thumbnail) return cb(null, null)
@@ -397,9 +406,12 @@ function styles() {
       border-radius: 10px;
       border: 5px #994 dashed;
     }
-    .tre-images-editor > .tre-image {
-      max-width: 250px;
+    .tre-images-editor .tre-image {
+      width: 100%;
       height: auto;
+    }
+    .tre-images-editor .tre-property-sheet {
+      width: 100%;
     }
   `)
 }
@@ -431,7 +443,33 @@ function factory(config) {
               "const": type
             },
             width: { type: 'number' },
-            height: { type: 'number' }
+            height: { type: 'number' },
+            exif: {
+              type: 'object',
+              properties: {
+                image: {
+                  type: 'object',
+                  properties: {
+                    Make: { type: 'string' },
+                    Model: { type: 'string' },
+                    XResolution: { type: 'number' },
+                    YResolution: { type: 'number' },
+                    Orientation: { type: 'number' }
+                  }
+                },
+                exif: {
+                  type: 'object',
+                  properties: {
+                    ExposureTime: { type: 'number' },
+                    FNumber: { type: 'number' },
+                    ISO: { type: 'number' }
+                    //ExifVersion: <Buffer 30 32 31 30>, 
+                    //DateTimeOriginal: 2001-10-02T14:57:31.000Z, 
+                    //DateTimeDigitized: 2001-10-02T14:57:31.000Z, 
+                  }
+                }
+              }
+            }
           }
         }
       }

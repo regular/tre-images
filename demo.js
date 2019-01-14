@@ -39,8 +39,42 @@ setStyle(`
     outline: 1px solid rgba(255,255,255,0.1);
   }
   .tre-images-editor {
-    max-width: 500px;
+    max-width: 1000px;
   }
+  .tre-property-sheet {
+    font-size: 9pt;
+    background: #4a4a4b;
+    color: #b6b6b6;
+  }
+
+  .tre-property-sheet summary {
+    font-weight: bold;
+    text-shadow: 0 0 4px black;
+    margin-top: .3em;
+    padding-top: .4em;
+    background: #555454;
+    border-top: 1px solid #807d7d;
+    margin-bottom: .1em;
+  }
+  .tre-property-sheet input {
+    background: #D0D052;
+    border: none;
+    margin-left: .5em;
+  }
+  .tre-property-sheet .inherited input {
+    background: #656464;
+  }
+  .tre-property-sheet details > div {
+    margin-left: 1em;
+  }
+  .tre-property-sheet [data-schema-type="number"] input {
+    width: 4em;
+  }
+  .tre-property-sheet .properties {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 5em);
+  }
+
 `)
 
 client( (err, ssb, config) => {
@@ -54,7 +88,8 @@ client( (err, ssb, config) => {
     return watchMerged(c.revisionRoot || kv.key)
   })
 
-  const importer = Importer(ssb)
+  console.log('config', config)
+  const importer = Importer(ssb, config)
   importer.use(require('.'))
 
   const renderFinder = Finder(ssb, {
