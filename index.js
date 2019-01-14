@@ -184,11 +184,11 @@ module.exports = function Render(ssb, opts) {
     function publish(file) {
       loadBitmap(file, (err, bitmap) => {
         if (err) return console.error(err)
-        console.log('bitmap', bitmap)
+        //console.log('bitmap', bitmap)
         const {width, height} = bitmap
         importFile(ssb, file, FileSource(file), {}, (err, content) => {
           if (err) return console.error(err.message)
-          console.log(content)
+          console.log('imported', content)
         })
       })
     }
@@ -231,9 +231,9 @@ function JpegParser(cb) {
 module.exports.importFile = importFile
 
 function extractThumbnail(ssb, file, exif, cb) {
-  console.log('exif', exif)
+  //console.log('exif', exif)
   const thumbnail = exif && exif.thumbnail
-  console.log('thumbnail', thumbnail)
+  //console.log('thumbnail', thumbnail)
   if (!thumbnail) return cb(null, null)
   const {ThumbnailOffset, ThumbnailLength} = thumbnail
   if (!ThumbnailOffset || !ThumbnailLength) return cb(
@@ -259,6 +259,7 @@ function extractThumbnail(ssb, file, exif, cb) {
 
 function importFile(ssb, file, source, opts, cb) {
   opts = opts || {}
+  const prototypes = opts.prototypes || {}
   const fileProps = Object.assign({}, file)
   getMeta(FileSource(file), (err, meta) => {
     if (err) {
@@ -284,6 +285,7 @@ function importFile(ssb, file, source, opts, cb) {
           debug('Extracted thumbnail %o', thumbnail)
           const content = {
             type: 'image',
+            prototype: prototypes.image,
             name,
             file: fileProps,
             width: meta && meta.width,
@@ -404,4 +406,41 @@ function styles() {
 
 function titleize(filename) {
   return filename.replace(/\.\w{3,4}$/, '').replace(/-/g, ' ')
+}
+
+module.exports.factory = factory
+
+function factory(config) {
+  const type = 'image'
+  return {
+    type,
+    i18n: {
+      'en': 'Image'
+    },
+    prototype: function() {
+      return {
+        type,
+        width: 0,
+        height: 0,
+        schema: {
+          description: 'An image with meta data',
+          type: 'object',
+          required: ['type', 'width', 'height'],
+          properties: {
+            type: {
+              "const": type
+            },
+            width: { type: 'number' },
+            height: { type: 'number' }
+          }
+        }
+      }
+    },
+    content: function() {
+      return {
+        type,
+        prototype: config.tre.prototypes[type]
+      }
+    }
+  }
 }

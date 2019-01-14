@@ -22,6 +22,9 @@
       "tre-client": true,
       "ssb-revisions": true
     },
+    "prototypes": {
+      ".": true
+    },
     "importers": {
       ".": true
     },
