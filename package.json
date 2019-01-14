@@ -44,7 +44,11 @@
   },
   "devDependencies": {
     "ssb-revisions": "^1.0.1",
-    "tre-client": "^1.1.0"
+    "tre-client": "^1.1.0",
+    "tre-file-importer": "^2.0.1",
+    "tre-finder": "^2.2.0",
+    "tre-prototypes": "^1.6.0",
+    "tre-split-pane": "^1.0.1"
   },
   "dependencies": {
     "debug": "^4.1.1",
