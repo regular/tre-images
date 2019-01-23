@@ -122,7 +122,7 @@ client( (err, ssb, config) => {
   document.body.appendChild(h('.tre-images-demo', [
     makeSplitPane({horiz: true}, [
       makePane('25%', [
-        renderFinder(config.tre.branches.images)
+        renderFinder(config.tre.branches.images || config.tre.branches.root)
       ]),
       makeDivider(),
       makePane('70%', [
