@@ -2,7 +2,7 @@
   "name": "tre-images",
   "version": "1.4.1",
   "description": "",
-  "main": "main.js",
+  "main": "common.js",
   "browser": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

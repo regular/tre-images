@@ -90,7 +90,7 @@ client( (err, ssb, config) => {
 
   console.log('config', config)
   const importer = Importer(ssb, config)
-  importer.use(require('./main'))
+  importer.use(require('./common'))
 
   const renderFinder = Finder(ssb, {
     importer,
