@@ -116,7 +116,6 @@ client( (err, ssb, config) => {
     }
   })
 
-  const key = config.tre.branches['exif-test']
   const where = Value('editor')
 
   document.body.appendChild(h('.tre-images-demo', [
