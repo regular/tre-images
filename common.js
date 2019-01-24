@@ -68,8 +68,8 @@ function importFile(ssb, file, source, opts, cb) {
   const prototypes = opts.prototypes || {}
   const fileProps = Object.assign({}, file)
   getMeta(FileSource(file), (err, meta) => {
-    if (err) {
-      debug('Not an image: %s', err.message)
+    if (err || !meta) {
+      debug('Not an image: %s', err ? err.message : 'Could not get meta data')
       return cb(true)
     }
     debug('It is an mage!: %O', meta)
