@@ -255,7 +255,10 @@ function factory(config) {
                   properties: {
                     ExposureTime: { type: 'number' },
                     FNumber: { type: 'number' },
-                    ISO: { type: 'number' }
+                    ISO: { type: 'number' },
+                    LensModel: { type: 'string' },
+                    BodySerialNumber: { type: 'string' },
+                    FocalLength: { type: 'number' }
                     //ExifVersion: <Buffer 30 32 31 30>, 
                     //DateTimeOriginal: 2001-10-02T14:57:31.000Z, 
                     //DateTimeDigitized: 2001-10-02T14:57:31.000Z, 
