@@ -77,8 +77,8 @@ function importFiles(ssb, files, opts, cb) {
   const fileProps = getFileProps(file)
 
   getMeta(file.source(), (err, meta) => {
-    if (err) {
-      debug('Not an image: %s', err.message)
+    if (err || !meta) {
+      if (err) debug('Error getting image meta data: %s', err.message)
       return cb(true)
     }
     debug('It is an image!: %O', meta)
