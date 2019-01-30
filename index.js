@@ -108,11 +108,11 @@ module.exports = function Render(ssb, opts) {
       return h('.tre-images-editor', [
         makeSplitPane({horiz: true}, [
           makePane('60%', [
-            renderCanvasOrImg(handleFile),
+            renderCanvasOrImg(upload),
           ]),
           makeDivider(),
           makePane('40%', [
-            renderPropertySheet(kv, Object.assign({}, opts, {contentObs}))
+            renderPropertySheet(kv, Object.assign({}, ctx, {contentObs}))
           ])
         ])
       ])
@@ -141,11 +141,11 @@ module.exports = function Render(ssb, opts) {
         if (err) return console.error(err)
         //console.log('bitmap', bitmap)
         //const {width, height} = bitmap
-        file.source = opts => FileSource(file, opts)
+        //file.source = opts => FileSource(file, opts)
         importFiles(ssb, [file], {prototypes}, (err, content) => {
           if (err) return console.error(err.message)
           console.log('imported', content)
-          contentObs.set(content)
+          set(content)
         })
       })
     }
