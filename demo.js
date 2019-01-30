@@ -138,15 +138,21 @@ function styles() {
       background: #656464;
     }
     .tre-property-sheet details > div {
-      margin-left: 1em;
+      padding-left: 1em;
     }
     .tre-property-sheet [data-schema-type="number"] input {
       width: 4em;
     }
+    .property[data-schema-type=string] {
+      grid-column: span 3;
+    }
     .tre-property-sheet .properties {
+      width: 100%;
       display: grid;
       grid-template-columns: repeat(auto-fill, 5em);
     }
-
+    .tre-property-sheet details {
+      grid-column: 1/-1;
+    }
   `)
 }
