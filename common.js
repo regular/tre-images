@@ -125,12 +125,12 @@ function importFiles(ssb, files, opts, cb) {
 }
 
 function parseFile(file, opts) {
-  const {onExif, onMeta} = opts
+  const {onExif, onMeta, forceExifParsing} = opts
   const parser = onMeta && imagesize.Parser()
   let jpegParser
   let meta = opts.meta
   let exif
-  if ( (file.type == 'image/jpeg' || (meta && meta.format == 'jpeg')) && onExif) {
+  if ( (forceExifParsing || file.type == 'image/jpeg' || (meta && meta.format == 'jpeg')) && onExif) {
     jpegParser = JpegParser((err, data) => {
       exif = data
       if (onExif) onExif(exif)

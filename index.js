@@ -108,7 +108,7 @@ module.exports = function Render(ssb, opts) {
       return h('.tre-images-editor', [
         makeSplitPane({horiz: true}, [
           makePane('60%', [
-            renderCanvasOrImg(upload),
+            renderCanvasOrImg(handleFile),
           ]),
           makeDivider(),
           makePane('40%', [
@@ -118,9 +118,14 @@ module.exports = function Render(ssb, opts) {
       ])
     }
 
-    function extractExif(file) {
+    function handleFile(file) {
+      set({extractedMeta: {}, width: 0, height: 0})
       const parser = parseFile(file, {
-        onExif: exif => set({extractedMeta})
+        onMeta: meta => set(meta),
+        onExif: extractedMeta =>{
+          set({extractedMeta})
+        },
+        forceExifParsing: true
       })
       pull(
         parser,
@@ -129,18 +134,12 @@ module.exports = function Render(ssb, opts) {
           if (err) console.error('parseFile error', err.message)
         })
       )
-    }
-
-    function handleFile(file) {
-      extractExif(file)
       loadBitmap(file, bitmapObs)
     }
 
     function upload(file) {
       loadBitmap(file, bitmapObs, (err, bitmap) => {
         if (err) return console.error(err)
-        //console.log('bitmap', bitmap)
-        //const {width, height} = bitmap
         //file.source = opts => FileSource(file, opts)
         importFiles(ssb, [file], {prototypes}, (err, content) => {
           if (err) return console.error(err.message)
