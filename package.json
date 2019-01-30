@@ -33,6 +33,13 @@
       ".": true
     },
     "files": {
+      "svg": {
+        "path": "Svg_example4.svg",
+        "content": {
+          "branch": "%images",
+          "root": "%root"
+        }
+      },
       "beaver": {
         "path": "beaver.jpg",
         "content": {
@@ -67,12 +74,12 @@
   },
   "dependencies": {
     "debug": "^4.1.1",
-    "imagesize": "^1.0.0",
     "jpeg-marker-stream": "^1.0.0",
     "module-styles": "^1.0.0",
     "mutant": "^3.22.1",
     "tre-file-importer": "^3.1.0",
-    "tre-property-sheet": "^1.2.0",
+    "tre-image-size": "^1.0.1",
+    "tre-property-sheet": "^1.2.1",
     "tre-string": "^1.0.1"
   }
 }

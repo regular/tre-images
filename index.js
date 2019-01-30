@@ -203,9 +203,11 @@ function Source(ssb) {
   return function getSrcObs(contentObs) {
     return computed([blobPrefix, contentObs], (bp, content) => {
       if (!bp) return null
+      let contentType = content && content.file && content.file.type
+      if (contentType == 'image/svg') contentType = 'image/svg+xml'
       const blob = content && content.blob
       if (!blob) return null
-      return `${bp}${encodeURIComponent(blob)}`
+      return `${bp}${encodeURIComponent(blob)}${contentType ? '?contentType=' + encodeURIComponent(contentType) : ''}`
     })
   }
 }

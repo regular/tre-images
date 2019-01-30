@@ -142,4 +142,47 @@ test('import bmp_24.png', t => {
   })
 })
 
+test('import ball-triangle.svg', t => {
+
+  let data
+  const ssb = {blobs: {
+    add: (cb)=> {
+      return pull.collect( (err, _data) => {
+        data = _data
+        return cb(err, 'HASH')
+      })
+    }
+  }}
+  const file = {
+    name: 'a-file-name.svg',
+    size: 20,
+    type: 'image/svg',
+    lastModified: 2222
+  }
+  const opts = {
+    prototypes: {
+      [TYPE]: 'foo'
+    }
+  }
+  file.source = (opts) => {
+    return FileSource({name: join(__dirname,'../ball-triangle.svg')}, opts)
+  }
+
+  importFiles(ssb, [file], opts, (err, result) => {
+    t.notOk(err, 'no error')
+    //console.log(result)
+    t.equal(result.type, TYPE, 'has correct type')
+    t.equal(result.prototype, 'foo', 'has correct prototype')
+    t.equal(result.blob, 'HASH', 'correct blob')
+    delete file.source
+    t.deepEqual(result.file, file, 'file is our file')
+    t.ok(result.name, 'has a name')
+    t.equal(result.width, 57, 'correct width')
+    t.equal(result.format, 'svg', 'correct format')
+    t.equal(result.height, 57, 'correct height')
+    t.notOk(result.thumbnail, 'has no thumbnail')
+    t.end()
+  })
+})
+
 

@@ -1,5 +1,5 @@
 const pull = require('pull-stream')
-const imagesize = require('imagesize')
+const detect = require('tre-image-size')
 const debug = require('debug')('tre-image:common')
 const FileSource = require('tre-file-importer/file-source')
 const JpegMarkerStream = require('jpeg-marker-stream')
@@ -37,7 +37,6 @@ function JpegParser(cb) {
 }
 
 function extractThumbnail(ssb, file, exif, cb) {
-  console.log('exif', exif)
   const thumbnail = exif && exif.thumbnail
   //console.log('thumbnail', thumbnail)
   if (!thumbnail) return cb(null, null)
@@ -49,7 +48,7 @@ function extractThumbnail(ssb, file, exif, cb) {
     start: 12 + ThumbnailOffset,
     end: 12 + ThumbnailOffset + ThumbnailLength
   })
-  let meta
+  let meta = {}
   pull(
     source,
     parseMeta((err, _meta) => {
@@ -126,7 +125,7 @@ function importFiles(ssb, files, opts, cb) {
 
 function parseFile(file, opts) {
   const {onExif, onMeta, forceExifParsing} = opts
-  const parser = onMeta && imagesize.Parser()
+  const imagesize = onMeta && detect(onMeta)
   let jpegParser
   let meta = opts.meta
   let exif
@@ -138,25 +137,9 @@ function parseFile(file, opts) {
   }
   const result = pull(
     file.source(),
-    /*
-    pull.map(buffer => {
-      return Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer)
-    }),
-    */
+    imagesize || pull.through(),
     pull.through( b => {
       if (jpegParser) jpegParser(b)
-    }),
-    pull.asyncMap( (b, cb) => {
-      if (!parser) return cb(null, b)
-      const state = parser.parse(b)
-      if (!meta && state == imagesize.Parser.DONE) {
-        meta = parser.getResult()
-        debug('meta %o', meta)
-        if (onMeta) onMeta(meta)
-      } else if (state == imagesize.Parser.INVALID) {
-        return cb(new Error('Invalid image format'))
-      }
-      cb(null, b)
     })
   )
   result.end = function() {
@@ -166,32 +149,32 @@ function parseFile(file, opts) {
 }
 
 function parseMeta(cb) {
-  const parser = imagesize.Parser()
-  let meta
   const passThrough = Boolean(cb)
+  let meta, first = true
+  const parser = detect(_meta => {
+    meta = _meta 
+    debug('meta %o', meta)
+  })
   return pull(
-    pull.map(buffer => {
-      return Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer)
-    }),
+    parser,
     pull.asyncMap( (b, _cb) => {
       if (meta) {
-        return passThrough ? _cb(null, b) : _cb(true)
-      }
-      const state = parser.parse(b)
-      if (state == imagesize.Parser.DONE) {
-        meta = parser.getResult()
-        debug('meta %o', meta)
-        if (passThrough) {
-          cb(null, meta)
-          return _cb(null, b)
+        if (first) {
+          first = false
+          if (passThrough) {
+            cb(null, meta)
+            _cb(null, b)
+          } else {
+            _cb(null, meta)
+          }
+          return
         }
-        return _cb(null, meta)
-      } else if (state == imagesize.Parser.INVALID) {
         if (passThrough) {
-          cb(new Error('Invalid image format'))
-          return _cb(null, b)
+          _cb(null, b)
+        } else {
+          _cb(true)
         }
-        return _cb(null, null)
+        return
       }
       return passThrough ? _cb(null, b) : _cb(null, null)
     }),
