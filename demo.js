@@ -1,6 +1,8 @@
 const {client} = require('tre-client')
 const Images = require('.')
 const Finder = require('tre-finder')
+const PropertySheet = require('tre-property-sheet')
+const Shell = require('tre-editor-shell')
 const Importer = require('tre-file-importer')
 const WatchMerged = require('tre-prototypes')
 const {makePane, makeDivider, makeSplitPane} = require('tre-split-pane')
@@ -32,26 +34,15 @@ client( (err, ssb, config) => {
     skipFirstLevel: true,
     details: (kv, ctx) => {
       return kv && kv.meta && kv.meta["prototype-chain"] ? h('i', '(has proto)') : []
-    },
-    /*
-    factory: {
-      menu: ()=> [{label: 'Object', type: 'object'}],
-      make: type => type == 'object' && {
-        type: 'object',
-        text: "Hi, I'm Elfo!"
-      }
-    }*/
+    }
   })
 
   const renderImage = Images(ssb, {
-    save: content => {
-      console.log('new content', content)
-      ssb.publish(content)
-    },
     prototypes: config.tre.prototypes
   })
 
   const where = Value('editor')
+  const renderEditor = Editor(ssb, where, merged_kv, renderImage)
 
   document.body.appendChild(h('.tre-images-demo', [
     makeSplitPane({horiz: true}, [
@@ -60,25 +51,103 @@ client( (err, ssb, config) => {
       ]),
       makeDivider(),
       makePane('70%', [
-        h('.bar', [
-          h('select', {
-            'ev-change': e => {
-              where.set(e.target.value)
-            }
-          }, [
-            h('option', 'editor'),
-            h('option', 'stage'),
-            h('option', 'thumbnail')
-          ])
-        ]),
-        computed([where, merged_kv], (where, kv) => kv ? renderImage(kv, {where}) : [])
+        renderBar(where),
+        renderEditor()
       ])
     ])
   ]))
 })
 
+function renderBar(where) {
+  return h('.bar', [
+    h('select', {
+      'ev-change': e => {
+        where.set(e.target.value)
+      }
+    }, [
+      h('option', 'editor'),
+      h('option', 'stage'),
+      h('option', 'thumbnail')
+    ])
+  ])
+}
+
+function Editor(ssb, whereObs, mergedKvObs, renderEditor) {
+  let current_kv
+  const contentObs = Value({})
+
+  const renderPropertySheet = PropertySheet()
+  const renderShell = Shell(ssb, {
+    save: (kv, cb) => {
+      ssb.publish(kv.value.content, (err, msg) => {
+        console.log('pyblish:', err, msg)
+        cb(err, msg)
+      })
+    }
+  })
+
+  return function() {
+    return h('.tre-images-editor', [
+      makeSplitPane({horiz: true}, [
+        makePane('60%', shellOrStage()),
+        makeDivider(),
+        makePane('40%', sheet())
+      ])
+    ])
+  }
+
+  function stage(where) {
+    return computed(mergedKvObs, kv => {
+      if (!kv) return []
+      contentObs.set(Object.assign({}, unmergeKv(kv).value.content))
+      return renderEditor(kv, {where})  
+    })
+  }
+
+  function shellOrStage() {
+    return computed(whereObs, where => {
+      if (where !== 'editor' && where !== 'compact-editor') {
+        current_kv = null
+        return stage(where)
+      }
+      return shell(where)
+    })
+  }
+
+  function shell(where) {
+    return computed(mergedKvObs, kv => {
+      if (
+        revisionRoot(kv) == revisionRoot(current_kv)
+      ) return computed.NO_CHANGE
+      current_kv = kv
+      if (!kv) return []
+      contentObs.set(unmergeKv(kv).value.content)
+      return renderShell(kv, {
+        renderEditor,
+        contentObs,
+        where
+      })
+    })
+  }
+
+  function sheet() {
+    return computed(mergedKvObs, kv => {
+      return renderPropertySheet(kv, {contentObs})
+    })
+  }
+}
+
 function content(kv) {
   return kv && kv.value && kv.value.content
+}
+
+function unmergeKv(kv) {
+  // if the message has prototypes and they were merged into this message value,
+  // return the unmerged/original value
+  return kv && kv.meta && kv.meta['prototype-chain'] && kv.meta['prototype-chain'][0] || kv
+}
+function revisionRoot(kv) {
+  return kv && kv.value.content && kv.value.content.revisionRoot || kv && kv.key
 }
 
 function styles() {

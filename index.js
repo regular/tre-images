@@ -3,7 +3,6 @@ const h = require('mutant/html-element')
 const Value = require('mutant/value')
 const computed = require('mutant/computed')
 const watch = require('mutant/watch')
-const PropertySheet = require('tre-property-sheet')
 const setStyle = require('module-styles')('tre-images')
 const debug = require('debug')('tre-image')
 const FileSource = require('tre-file-importer/file-source')
@@ -18,7 +17,6 @@ module.exports = function Render(ssb, opts) {
 
   styles()
 
-  const renderPropertySheet = PropertySheet()
 
   const getSrcObs = Source(ssb)
 
@@ -94,7 +92,7 @@ module.exports = function Render(ssb, opts) {
     }
 
     function renderThumbnail() {
-      renderTag(thumbnailObs, {
+      return renderTag(thumbnailObs, {
         element: ({src, width, height}) => {
           return h('img.tre-image-thumbnail', {
             src, width, height
@@ -105,17 +103,7 @@ module.exports = function Render(ssb, opts) {
     }
 
     function renderEditor() {
-      return h('.tre-images-editor', [
-        makeSplitPane({horiz: true}, [
-          makePane('60%', [
-            renderCanvasOrImg(handleFile),
-          ]),
-          makeDivider(),
-          makePane('40%', [
-            renderPropertySheet(kv, Object.assign({}, ctx, {contentObs}))
-          ])
-        ])
-      ])
+      return renderCanvasOrImg(upload)
     }
 
     function handleFile(file) {
