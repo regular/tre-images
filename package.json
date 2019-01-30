@@ -2,18 +2,21 @@
   "name": "tre-images",
   "version": "1.5.0",
   "description": "",
-  "main": "common.js",
+  "main": "main.js",
   "browser": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "tape test/**"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/regular/tre-images.git"
   },
-  "keywords": [],
+  "keywords": [
+    "tre",
+    "ssb"
+  ],
   "author": "Jan Bölsche <jan@lagomorph.de> (https://regular.codes/)",
-  "license": "ISC",
+  "license": "AGPL-3.0-or-later",
   "bugs": {
     "url": "https://github.com/regular/tre-images/issues"
   },
@@ -43,11 +46,19 @@
           "branch": "%images",
           "root": "%root"
         }
+      },
+      "png-test": {
+        "path": "bmp_24.png",
+        "content": {
+          "branch": "%images",
+          "root": "%root"
+        }
       }
     }
   },
   "devDependencies": {
     "ssb-revisions": "^1.0.1",
+    "tape": "^4.9.2",
     "tre-client": "^2.1.0",
     "tre-finder": "^2.2.0",
     "tre-prototypes": "^1.6.0",
@@ -55,15 +66,12 @@
   },
   "dependencies": {
     "debug": "^4.1.1",
-    "exifreader": "^2.5.0",
     "imagesize": "^1.0.0",
     "jpeg-marker-stream": "^1.0.0",
     "module-styles": "^1.0.0",
     "mutant": "^3.22.1",
-    "pretty-bytes": "^5.1.0",
-    "tre-dropzone": "^1.0.0",
     "tre-property-sheet": "^1.1.3",
     "tre-string": "^1.0.1",
-    "tre-file-importer": "^2.1.0"
+    "tre-file-importer": "^3.1.0"
   }
 }

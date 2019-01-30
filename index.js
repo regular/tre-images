@@ -10,43 +10,50 @@ const debug = require('debug')('tre-image')
 const FileSource = require('tre-file-importer/file-source')
 const {makePane, makeDivider, makeSplitPane} = require('tre-split-pane')
 
-const { importFile, parseFile } = require('./common')
+const {importFiles, parseFile} = require('./common')
 
 module.exports = function Render(ssb, opts) {
   opts = opts || {}
+  const {prototypes} = opts
+  if (!prototypes) throw new Error('need prototypes!')
 
   styles()
+
   const renderPropertySheet = PropertySheet()
 
-  const blobPrefix = Value()
-  ssb.ws.getAddress((err, address) => {
-    if (err) return console.error(err)
-    address = address.replace(/^ws:\/\//, 'http://').replace(/~.*$/, '/blobs/get/')
-    blobPrefix.set(address)
-  })
+  const getSrcObs = Source(ssb)
 
   return function render(kv, ctx) {
     ctx = ctx || {}
     const where = ctx.where || 'stage'
-    const bitmap = Value()
-    const exifTagsObs = Value()
-
     const content = kv.value.content
+    if (!content) return
+    const bitmapObs = Value()
+    const contentObs = ctx.contentObs || Value(content)
+    const thumbnailObs = computed(contentObs, content => {
+      return content && content.thumbnail
+    })
+
+    console.log('content', contentObs())
+
+    function set(o) {
+      contentObs.set(Object.assign({}, contentObs(), o))
+    }
+
     if (where == 'editor') {
       return renderEditor()
-    }
-    if (where == 'thumbnail') {
+    } else if (where == 'thumbnail') {
       return renderThumbnail()
     }
-    return renderCanvasOrImg(publish)
+    return renderCanvasOrImg(upload)
 
+    // if bitmapObs is set, render the bitmap
+    // to a canvas, otherwise render the blob
+    // referred to in content
     function renderCanvasOrImg(handleFile) {
-      return computed(bitmap, bitmap => {
-        if (!bitmap) {
-          const {exif} = content
-          exifTagsObs.set(exif)
-          return renderImg(handleFile)
-        }
+      return computed(bitmapObs, bitmap => {
+        if (!bitmap) return renderImg(contentObs, handleFile)
+        
         return h('canvas.tre-image', Object.assign( {}, dragAndDrop(handleFile), {
           width: bitmap.width,
           height: bitmap.height,
@@ -61,30 +68,41 @@ module.exports = function Render(ssb, opts) {
       })
     }
 
-    function renderThumbnail() {
-      const {thumbnail} = content
-      if (!thumbnail) {
-        return h('.tre-image-thumbnail', {}, 'no thumbnail')
-      }
-      const {meta, blob} = thumbnail
-      const {width, height} = meta
-      return h('img.tre-image-thumbnail', {
-        src: computed(blobPrefix, bp => `${bp}${encodeURIComponent(blob)}`),
-        width,
-        height
+    function renderTag(contentObs, opts) {
+      opts = opts || {}
+      const {handleFileDrop, placeholder, element} = opts
+      const src = getSrcObs(contentObs)
+      const width = computed(contentObs, content => content.width)
+      const height = computed(contentObs, content => content.height)
+      
+      return computed([src, width, height], (src, width, height) => {
+        if (!src) {
+          if (!placeholder) return h('.tre-image.empty', dragAndDrop(handleFileDrop))
+          return placeholder({handleFileDrop})
+        }
+        return element({src, width, height, handleFileDrop})
+      })
+    }
+    function renderImg(contentObs, handleFileDrop) {
+      return renderTag(contentObs, {
+        handleFileDrop,
+        element: ({src, width, height, handleFileDrop}) => {
+          return h('img.tre-image', Object.assign(dragAndDrop(handleFileDrop), {
+            src, width, height
+          }))
+        }
       })
     }
 
-    function renderImg(handleFile) {
-      if (!content.blob) {
-        return h('.tre-image.empty', dragAndDrop(handleFile))
-      }
-      const {width, height, blob} = content
-      return h('img.tre-image', Object.assign(dragAndDrop(handleFile), {
-        src: computed(blobPrefix, bp => `${bp}${encodeURIComponent(blob)}`),
-        width,
-        height
-      }))
+    function renderThumbnail() {
+      renderTag(thumbnailObs, {
+        element: ({src, width, height}) => {
+          return h('img.tre-image-thumbnail', {
+            src, width, height
+          })
+        },
+        placeholder: ()=> h('.tre-image-thumbnail', {}, 'no thumbnail')
+      })
     }
 
     function renderEditor() {
@@ -95,9 +113,7 @@ module.exports = function Render(ssb, opts) {
           ]),
           makeDivider(),
           makePane('40%', [
-            computed(exifTagsObs, tags => {
-              return renderPropertySheet(kv)
-            })
+            renderPropertySheet(kv, Object.assign({}, opts, {contentObs}))
           ])
         ])
       ])
@@ -105,46 +121,32 @@ module.exports = function Render(ssb, opts) {
 
     function extractExif(file) {
       const parser = parseFile(file, {
-        onExif: exif => exifTagsObs.set(exif)
+        onExif: exif => set({extractedMeta})
       })
       pull(
         parser,
         pull.onEnd( err => {
           parser.end()
-          if (err) console.error('err', err.message)
+          if (err) console.error('parseFile error', err.message)
         })
       )
     }
 
-    function loadBitmap(file, cb) {
-      // See
-      // https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/createImageBitmap
-      options = {} 
-      global.createImageBitmap(file, options).then( bmp => {
-        const old = bitmap()
-        if (old) old.close()
-        bitmap.set(bmp)
-        if (cb) cb(null, bmp)
-      }).catch( err => {
-        if (err) console.error(err.message)
-        bitmap.set(null)
-        if (cb) cb(err)
-      })
-    }
-
     function handleFile(file) {
       extractExif(file)
-      loadBitmap(file)
+      loadBitmap(file, bitmap)
     }
 
-    function publish(file) {
-      loadBitmap(file, (err, bitmap) => {
+    function upload(file) {
+      loadBitmap(file, bitmap, (err, bitmap) => {
         if (err) return console.error(err)
         //console.log('bitmap', bitmap)
-        const {width, height} = bitmap
-        importFile(ssb, file, FileSource(file), {}, (err, content) => {
+        //const {width, height} = bitmap
+        file.source = opts => FileSource(file, opts)
+        importFiles(ssb, [file], {prototypes}, (err, content) => {
           if (err) return console.error(err.message)
           console.log('imported', content)
+          contentObs.set(content)
         })
       })
     }
@@ -152,31 +154,24 @@ module.exports = function Render(ssb, opts) {
   }
 }
 
-function styles() {
-  setStyle(`
-    .tre-images-editor {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      grid-auto-flow: column;
-    }
-    .tre-image.empty {
-      width: 200px;
-      height: 200px;
-      border-radius: 10px;
-      border: 5px #999 dashed;
-    }
-    .tre-image.drag-hover {
-      border-radius: 10px;
-      border: 5px #994 dashed;
-    }
-    .tre-images-editor .tre-image {
-      width: 100%;
-      height: auto;
-    }
-    .tre-images-editor .tre-property-sheet {
-      width: 100%;
-    }
-  `)
+// -- utils
+
+function loadBitmap(file, bitmapObs, cb) {
+  // See
+  // https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/createImageBitmap
+  options = {} 
+  global.createImageBitmap(file, options).then( bmp => {
+    const old = bitmapObs()
+    if (old) old.close()
+    bitmapObs.set(bmp)
+    if (cb) cb(null, bmp)
+  }).catch( err => {
+    if (err) console.error('createImageBitmap error', err.message)
+    const old = bitmapObs()
+    if (old) old.close()
+    bitmapObs.set(null)
+    if (cb) cb(err)
+  })
 }
 
 function dragAndDrop(onfile) {
@@ -205,30 +200,48 @@ function dragAndDrop(onfile) {
   }
 }
 
-function renderTags(tags, name) {
-  if (typeof tags == 'object') {
-    if (!tags) return h('span', 'null') 
-    if (Object.keys(tags).length == 2 && tags.description !== undefined) {
-      return h('.key-value', [
-        h('span.key', [name, '=']),
-        h('span.value', tags.description)
-      ])
-    }
+function Source(ssb) {
+  const blobPrefix = Value()
+  ssb.ws.getAddress((err, address) => {
+    if (err) return console.error(err)
+    address = address.replace(/^ws:\/\//, 'http://').replace(/~.*$/, '/blobs/get/')
+    blobPrefix.set(address)
+  })
 
-    return h('details.exif', {
-      'open': true
-    }, [
-      h('summary', [
-        h('span', name || 'exif')
-      ]),
-      Object.keys(tags).map(k => {
-        return renderTags(tags[k], k)
-      })
-    ])
+  return function getSrcObs(contentObs) {
+    return computed([blobPrefix, contentObs], (bp, content) => {
+      if (!bp) return null
+      const blob = content && content.blob
+      if (!blob) return null
+      return `${bp}${encodeURIComponent(blob)}`
+    })
   }
-  return h('.key-value', [
-    h('span.key', name),
-    h('span.value', tags)
-  ])
+}
+
+function styles() {
+  setStyle(`
+    .tre-images-editor {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-auto-flow: column;
+    }
+    .tre-image.empty {
+      width: 200px;
+      height: 200px;
+      border-radius: 10px;
+      border: 5px #999 dashed;
+    }
+    .tre-image.drag-hover {
+      border-radius: 10px;
+      border: 5px #994 dashed;
+    }
+    .tre-images-editor .tre-image {
+      width: 100%;
+      height: auto;
+    }
+    .tre-images-editor .tre-property-sheet {
+      width: 100%;
+    }
+  `)
 }
 

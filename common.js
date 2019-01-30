@@ -45,7 +45,7 @@ function extractThumbnail(ssb, file, exif, cb) {
   if (!ThumbnailOffset || !ThumbnailLength) return cb(
     new Error('Missing property in exif.image.thumbnail')
   )
-  const source = FileSource(file, {
+  const source = file.source({
     start: 12 + ThumbnailOffset,
     end: 12 + ThumbnailOffset + ThumbnailLength
   })
@@ -63,22 +63,31 @@ function extractThumbnail(ssb, file, exif, cb) {
   )
 }
 
-function importFile(ssb, file, source, opts, cb) {
+function importFiles(ssb, files, opts, cb) {
   opts = opts || {}
-  const prototypes = opts.prototypes || {}
-  const fileProps = Object.assign({}, file)
-  getMeta(FileSource(file), (err, meta) => {
+  const {prototypes} = opts
+  const prototype = prototypes && prototypes.image
+  if (!prototype) return cb(new Error('no image prototype'))
+  if (files.length>1) {
+    debug('mult-file import is nur supported')
+    return cb(true) // we don't do multiple files
+  }
+  const file = files[0]
+
+  const fileProps = getFileProps(file)
+
+  getMeta(file.source(), (err, meta) => {
     if (err) {
       debug('Not an image: %s', err.message)
       return cb(true)
     }
-    debug('It is an mage!: %O', meta)
+    debug('It is an image!: %O', meta)
     fileProps.type = `image/${meta.format}` // TODO
-    let exif
+    let extracted
     //if (!/^image\//.test(file.type)) return cb(true)
     const parser = parseFile(file, {
       meta,
-      onExif: e => exif = e
+      onExif: e => extracted = e
     })
     pull(
       parser,
@@ -86,19 +95,27 @@ function importFile(ssb, file, source, opts, cb) {
         parser.end()
         if (err) return cb(err)
         const name = titleize(file.name)
-        extractThumbnail(ssb, file, exif, (err, thumbnail) => {
+        extractThumbnail(ssb, file, extracted, (err, thumbnail) => {
           if (err) console.warn('Problem extracting thumbnail', err.message)
           debug('Extracted thumbnail %o', thumbnail)
           const content = {
             type: 'image',
-            prototype: prototypes.image,
+            prototype,
             name,
             file: fileProps,
             width: meta && meta.width,
             height: meta && meta.height,
-            exif,
-            blob: hash,
-            thumbnail
+            format: meta && meta.format,
+            extractedMeta: extracted,
+            blob: hash
+          }
+          if (thumbnail) {
+            content.thumbnail = {
+              blob: thumbnail.blob,
+              width: thumbnail.meta.width,
+              height: thumbnail.meta.height,
+              format: thumbnail.meta.format
+            }
           }
           return cb(null, content)
         })
@@ -120,10 +137,12 @@ function parseFile(file, opts) {
     })
   }
   const result = pull(
-    FileSource(file),
+    file.source(),
+    /*
     pull.map(buffer => {
       return Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer)
     }),
+    */
     pull.through( b => {
       if (jpegParser) jpegParser(b)
     }),
@@ -191,7 +210,7 @@ function titleize(filename) {
 }
 
 module.exports = {
-  importFile,
+  importFiles,
   factory,
   parseFile
 }
@@ -218,7 +237,7 @@ function factory(config) {
             },
             width: { type: 'number' },
             height: { type: 'number' },
-            exif: {
+            extractedMeta: {
               type: 'object',
               properties: {
                 image: {
@@ -254,5 +273,17 @@ function factory(config) {
         prototype: config.tre.prototypes[type]
       }
     }
+  }
+}
+
+// -- utils
+
+function getFileProps(file) {
+  // Object.assign does not work with file objects
+  return {
+    lastModified: file.lastModified,
+    name: file.name,
+    size: file.size,
+    type: file.type,
   }
 }

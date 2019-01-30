@@ -1,4 +1,4 @@
 tre-images
 ---
 
-License: ISC
+License: AGPLv3 - Copyright 2019 Jan Boelsche
