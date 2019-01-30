@@ -133,11 +133,11 @@ module.exports = function Render(ssb, opts) {
 
     function handleFile(file) {
       extractExif(file)
-      loadBitmap(file, bitmap)
+      loadBitmap(file, bitmapObs)
     }
 
     function upload(file) {
-      loadBitmap(file, bitmap, (err, bitmap) => {
+      loadBitmap(file, bitmapObs, (err, bitmap) => {
         if (err) return console.error(err)
         //console.log('bitmap', bitmap)
         //const {width, height} = bitmap
@@ -194,7 +194,13 @@ function dragAndDrop(onfile) {
       e.preventDefault()
       e.stopPropagation()
       const files = e.dataTransfer.files || []
-      for(let file of files) onfile(file)
+      function source(file) {
+        return opts => FileSource(file, opts)
+      }
+      for(let file of files) {
+        file.source = source(file)
+        onfile(file)
+      }
     } 
   }
 }
