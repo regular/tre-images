@@ -104,7 +104,9 @@ module.exports = function Render(ssb, opts) {
     }
 
     function renderEditor() {
-      return renderCanvasOrImg(upload)
+      return h('.tre-images-editor', [
+        renderCanvasOrImg(upload)
+      ])
     }
 
     function handleFile(file) {
@@ -216,9 +218,7 @@ function Source(ssb) {
 function styles() {
   setStyle(`
     .tre-images-editor {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      grid-auto-flow: column;
+      height: 100%;
     }
     .tre-image.empty {
       width: 200px;
@@ -233,9 +233,6 @@ function styles() {
     .tre-images-editor .tre-image {
       width: 100%;
       height: auto;
-    }
-    .tre-images-editor .tre-property-sheet {
-      width: 100%;
     }
   `)
 }
