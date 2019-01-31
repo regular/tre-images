@@ -25,6 +25,7 @@ module.exports = function Render(ssb, opts) {
     const where = ctx.where || 'stage'
     const content = kv.value.content
     if (!content) return
+    if (content.type !== 'image') return
     const bitmapObs = Value()
     const contentObs = ctx.contentObs || Value(content)
     const thumbnailObs = computed(contentObs, content => {
