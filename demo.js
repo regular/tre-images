@@ -9,6 +9,7 @@ const {makePane, makeDivider, makeSplitPane} = require('tre-split-pane')
 const h = require('mutant/html-element')
 const Value = require('mutant/value')
 const computed = require('mutant/computed')
+const watch = require('mutant/watch')
 const setStyle = require('module-styles')('tre-images-demo')
 
 styles()
@@ -16,21 +17,11 @@ styles()
 client( (err, ssb, config) => {
   if (err) return console.error(err)
 
-  const watchMerged = WatchMerged(ssb)
-  const primarySelection = Value()
-  const merged_kv = computed(primarySelection, kv => {
-    const c = content(kv)
-    if (!c) return
-    return watchMerged(c.revisionRoot || kv.key)
-  })
-
-  console.log('config', config)
   const importer = Importer(ssb, config)
   importer.use(require('./common'))
 
   const renderFinder = Finder(ssb, {
     importer,
-    primarySelection,
     skipFirstLevel: true,
     details: (kv, ctx) => {
       return kv && kv.meta && kv.meta["prototype-chain"] ? h('i', '(has proto)') : []
@@ -42,7 +33,7 @@ client( (err, ssb, config) => {
   })
 
   const where = Value('editor')
-  const renderEditor = Editor(ssb, where, merged_kv, renderImage)
+  const renderEditor = Editor(ssb, where, renderFinder.primarySelectionObs, renderImage)
 
   document.body.appendChild(h('.tre-images-demo', [
     makeSplitPane({horiz: true}, [
@@ -72,10 +63,8 @@ function renderBar(where) {
   ])
 }
 
-function Editor(ssb, whereObs, mergedKvObs, renderEditor) {
-  let current_kv
-  const contentObs = Value({})
-
+function Editor(ssb, whereObs, selectionKvObs, renderEditor) {
+  const getPreviewObs = PreviewObs(ssb)
   const renderPropertySheet = PropertySheet()
   const renderShell = Shell(ssb, {
     save: (kv, cb) => {
@@ -87,52 +76,53 @@ function Editor(ssb, whereObs, mergedKvObs, renderEditor) {
   })
 
   return function() {
-    return h('.tre-images-editor', [
-      makeSplitPane({horiz: true}, [
-        makePane('60%', shellOrStage()),
-        makeDivider(),
-        makePane('40%', sheet())
-      ])
-    ])
-  }
-
-  function stage(where) {
-    return computed(mergedKvObs, kv => {
+    return computed(selectionKvObs, kv => {
       if (!kv) return []
-      contentObs.set(Object.assign({}, unmergeKv(kv).value.content))
-      return renderEditor(kv, {where})  
-    })
-  }
+      const contentObs = Value(unmergeKv(kv).value.content)
+      const previewObs = getPreviewObs(contentObs)
 
-  function shellOrStage() {
-    return computed(whereObs, where => {
-      if (where !== 'editor' && where !== 'compact-editor') {
-        current_kv = null
-        return stage(where)
-      }
-      return shell(where)
-    })
-  }
-
-  function shell(where) {
-    return computed(mergedKvObs, kv => {
-      if (
-        revisionRoot(kv) == revisionRoot(current_kv)
-      ) return computed.NO_CHANGE
-      current_kv = kv
-      if (!kv) return []
-      contentObs.set(unmergeKv(kv).value.content)
-      return renderShell(kv, {
-        renderEditor,
-        contentObs,
-        where
+      /*
+      const abort2 = watch(contentObs, c => {
+        console.warn('contentObs changed', c)
       })
-    })
-  }
+      */
 
-  function sheet() {
-    return computed(mergedKvObs, kv => {
-      return renderPropertySheet(kv, {contentObs})
+      return h('.tre-images-editor', [
+        makeSplitPane({horiz: true}, [
+          makePane('60%', shellOrStage()),
+          makeDivider(),
+          makePane('40%', sheet())
+        ])
+      ])
+
+      function stage(where) {
+        return renderEditor(kv, {where, previewObs})  
+      }
+
+      function shellOrStage() {
+        return computed(whereObs, where => {
+          if (where !== 'editor' && where !== 'compact-editor') {
+            return stage(where)
+          }
+          return shell(where)
+        })
+      }
+
+      function shell(where) {
+        return renderShell(kv, {
+          renderEditor,
+          where,
+          contentObs,
+          previewObs
+        })
+      }
+
+      function sheet() {
+        return renderPropertySheet(kv, {
+          previewObs,
+          contentObs
+        })
+      }
     })
   }
 }
@@ -148,6 +138,22 @@ function unmergeKv(kv) {
 }
 function revisionRoot(kv) {
   return kv && kv.value.content && kv.value.content.revisionRoot || kv && kv.key
+}
+
+function PreviewObs(ssb) {
+  const watchMerged = WatchMerged(ssb)
+  return function(contentObs) {
+    const editing_kv = computed(contentObs, content => {
+      if (!content) return null
+      return {
+        key: 'draft',
+        value: {
+          content
+        }
+      }
+    })
+    return watchMerged(editing_kv)
+  }
 }
 
 function styles() {
@@ -205,6 +211,9 @@ function styles() {
     }
     .tre-property-sheet .inherited input {
       background: #656464;
+    }
+    .tre-property-sheet .new input {
+      background: white;
     }
     .tre-property-sheet details > div {
       padding-left: 1em;

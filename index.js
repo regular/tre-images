@@ -1,6 +1,7 @@
 const pull = require('pull-stream')
 const h = require('mutant/html-element')
 const Value = require('mutant/value')
+const Str = require('tre-string')
 const computed = require('mutant/computed')
 const watch = require('mutant/watch')
 const setStyle = require('module-styles')('tre-images')
@@ -17,7 +18,6 @@ module.exports = function Render(ssb, opts) {
 
   styles()
 
-
   const getSrcObs = Source(ssb)
 
   return function render(kv, ctx) {
@@ -27,16 +27,21 @@ module.exports = function Render(ssb, opts) {
     if (!content) return
     if (content.type !== 'image') return
     const bitmapObs = Value()
-    const contentObs = ctx.contentObs || Value(content)
-    const thumbnailObs = computed(contentObs, content => {
-      return content && content.thumbnail
+    const ownContentObs = ctx.contentObs || Value({})
+    const previewObs = ctx.previewObs || Value(kv)
+    const previewContentObs = computed(previewObs, kv => kv && kv.value.content)
+    const thumbnailObs = computed(previewContentObs, kv => content && content.thumbnail)
+    
+    function set(o) {
+      ownContentObs.set(Object.assign({}, ownContentObs(), o))
+    }
+
+    const renderStr = Str({
+      save: text => {
+        set({name: text})
+      }
     })
 
-    console.log('content', contentObs())
-
-    function set(o) {
-      contentObs.set(Object.assign({}, contentObs(), o))
-    }
 
     if (where == 'editor') {
       return renderEditor()
@@ -50,7 +55,7 @@ module.exports = function Render(ssb, opts) {
     // referred to in content
     function renderCanvasOrImg(handleFile) {
       return computed(bitmapObs, bitmap => {
-        if (!bitmap) return renderImg(contentObs, handleFile)
+        if (!bitmap) return renderImg(previewContentObs, handleFile)
         
         return h('canvas.tre-image', Object.assign( {}, dragAndDrop(handleFile), {
           width: bitmap.width,
@@ -66,12 +71,12 @@ module.exports = function Render(ssb, opts) {
       })
     }
 
-    function renderTag(contentObs, opts) {
+    function renderTag(cObs, opts) {
       opts = opts || {}
       const {handleFileDrop, placeholder, element} = opts
-      const src = getSrcObs(contentObs)
-      const width = computed(contentObs, content => content.width)
-      const height = computed(contentObs, content => content.height)
+      const src = getSrcObs(cObs)
+      const width = computed(cObs, content => content && content.width || 10)
+      const height = computed(cObs, content => content && content.height || 10)
       
       return computed([src, width, height], (src, width, height) => {
         if (!src) {
@@ -81,8 +86,8 @@ module.exports = function Render(ssb, opts) {
         return element({src, width, height, handleFileDrop})
       })
     }
-    function renderImg(contentObs, handleFileDrop) {
-      return renderTag(contentObs, {
+    function renderImg(cObs, handleFileDrop) {
+      return renderTag(cObs, {
         handleFileDrop,
         element: ({src, width, height, handleFileDrop}) => {
           return h('img.tre-image', Object.assign(dragAndDrop(handleFileDrop), {
@@ -105,6 +110,7 @@ module.exports = function Render(ssb, opts) {
 
     function renderEditor() {
       return h('.tre-images-editor', [
+        h('h1', renderStr(computed(previewObs, kv => kv && kv.value.content.name || 'No Name'))),
         renderCanvasOrImg(upload)
       ])
     }
@@ -203,8 +209,8 @@ function Source(ssb) {
     blobPrefix.set(address)
   })
 
-  return function getSrcObs(contentObs) {
-    return computed([blobPrefix, contentObs], (bp, content) => {
+  return function getSrcObs(cObs) {
+    return computed([blobPrefix, cObs], (bp, content) => {
       if (!bp) return null
       let contentType = content && content.file && content.file.type
       if (contentType == 'image/svg') contentType = 'image/svg+xml'

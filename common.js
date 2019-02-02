@@ -218,6 +218,7 @@ function factory(config) {
             type: {
               "const": type
             },
+            name: { type: 'string' },
             width: { type: 'number' },
             height: { type: 'number' },
             extractedMeta: {
