@@ -9,7 +9,7 @@ const debug = require('debug')('tre-image')
 const FileSource = require('tre-file-importer/file-source')
 const {makePane, makeDivider, makeSplitPane} = require('tre-split-pane')
 
-const {importFiles, parseFile} = require('./common')
+const {importFiles, factory, parseFile} = require('./common')
 
 module.exports = function Render(ssb, opts) {
   opts = opts || {}
@@ -45,7 +45,7 @@ module.exports = function Render(ssb, opts) {
 
     if (where == 'editor') {
       return renderEditor()
-    } else if (where == 'thumbnail') {
+    } else if (['thumbnail', 'tile'].includes(where)) {
       return renderThumbnail()
     }
     return renderCanvasOrImg(upload)
@@ -148,6 +148,9 @@ module.exports = function Render(ssb, opts) {
 
   }
 }
+
+module.exports.importFiles = importFiles
+module.exports.factory = factory
 
 // -- utils
 
