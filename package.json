@@ -74,8 +74,10 @@
     "tre-split-pane": "^1.0.1"
   },
   "dependencies": {
+    "bl": "^2.2.0",
     "debug": "^4.1.1",
     "jpeg-marker-stream": "^1.0.0",
+    "mini-svg-data-uri": "^1.0.2",
     "module-styles": "^1.0.0",
     "mutant": "^3.22.1",
     "tre-file-importer": "^3.1.0",

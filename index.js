@@ -8,6 +8,8 @@ const setStyle = require('module-styles')('tre-images')
 const debug = require('debug')('tre-image')
 const FileSource = require('tre-file-importer/file-source')
 const {makePane, makeDivider, makeSplitPane} = require('tre-split-pane')
+const BufferList = require('bl')
+const svgDataUri = require('mini-svg-data-uri')
 
 const {importFiles, factory, parseFile} = require('./common')
 
@@ -27,6 +29,7 @@ module.exports = function Render(ssb, opts) {
     if (!content) return
     if (content.type !== 'image') return
     const bitmapObs = Value()
+    const dataURIObs = Value()
     const ownContentObs = ctx.contentObs || Value({})
     const previewObs = ctx.previewObs || Value(kv)
     const previewContentObs = computed(previewObs, kv => kv && kv.value.content)
@@ -50,13 +53,23 @@ module.exports = function Render(ssb, opts) {
     }
     return renderCanvasOrImg(upload)
 
-    // if bitmapObs is set, render the bitmap
-    // to a canvas, otherwise render the blob
+    // - if bitmapObs is set, render the bitmap
+    // to a canvas.
+    // - if dataURIObs is set, render it as img src.
+    // - Otherwise render the blob
     // referred to in content
     function renderCanvasOrImg(handleFile) {
-      return computed(bitmapObs, bitmap => {
-        if (!bitmap) return renderImg(previewContentObs, handleFile)
+      return computed([bitmapObs, dataURIObs], (bitmap, dataURI) => {
+        if (!bitmap && !dataURI) return renderImg(previewContentObs, handleFile)
         
+        if (dataURI) { 
+          return h('img.tre-image', Object.assign(dragAndDrop(handleFile), {
+            src: dataURI,
+            width: computed(previewContentObs, c => c && c.width),
+            height: computed(previewContentObs, c => c && c.height)
+          }))
+        }
+
         return h('canvas.tre-image', Object.assign( {}, dragAndDrop(handleFile), {
           width: bitmap.width,
           height: bitmap.height,
@@ -98,13 +111,21 @@ module.exports = function Render(ssb, opts) {
     }
 
     function renderThumbnail() {
-      return renderTag(thumbnailObs, {
-        element: ({src, width, height}) => {
-          return h('img.tre-image-thumbnail', {
-            src, width, height
-          })
-        },
-        placeholder: ()=> h('.tre-image-thumbnail', {}, 'no thumbnail')
+      const formatObs = computed(previewContentObs, c => c && c.format)
+      return computed(formatObs, format => {
+        if (!format) return []
+        let obs = thumbnailObs
+        if (format.includes('svg')) {
+          obs = previewContentObs
+        }
+        return renderTag(obs, {
+          element: ({src, width, height}) => {
+            return h('img.tre-image-thumbnail', {
+              src, width, height
+            })
+          },
+          placeholder: ()=> h('.tre-image-thumbnail', {}, 'no thumbnail')
+        })
       })
     }
 
@@ -131,19 +152,44 @@ module.exports = function Render(ssb, opts) {
           if (err) console.error('parseFile error', err.message)
         })
       )
+      const c = contentObs()
+      const format = c && c.format
+      if (!format) {
+        return console.warn('image format detection failed')
+      }
+      if (format.includes('svg')) {
+        pull(
+          file.source(),
+          pull.collect( (err, buffers) => {
+            if (err) {
+              return console.warn('failed reading svg data')
+            }
+            const svgSrc = BufferList(buffers).toString()
+            dataURIObs.set(svgDataUri(svgSrc))
+          })
+        )
+        return 
+      }
       loadBitmap(file, bitmapObs)
     }
 
     function upload(file) {
+      if (file.type && file.type.includes('svg')) {
+        return doImport()
+      }
+      
       loadBitmap(file, bitmapObs, (err, bitmap) => {
         if (err) return console.error(err)
-        //file.source = opts => FileSource(file, opts)
+        doImport()
+      })
+
+      function doImport() {
         importFiles(ssb, [file], {prototypes}, (err, content) => {
           if (err) return console.error(err.message)
           console.log('imported', content)
           set(content)
         })
-      })
+      }
     }
 
   }
