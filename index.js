@@ -15,7 +15,7 @@ const {importFiles, factory, parseFile} = require('./common')
 
 module.exports = function Render(ssb, opts) {
   opts = opts || {}
-  const {prototypes} = opts
+  const {prototypes, renderCustomElement} = opts
   if (!prototypes) throw new Error('need prototypes!')
 
   styles()
@@ -90,23 +90,23 @@ module.exports = function Render(ssb, opts) {
       const src = getSrcObs(cObs)
       const width = computed(cObs, content => content && content.width || 10)
       const height = computed(cObs, content => content && content.height || 10)
-      
-      return computed([src, width, height], (src, width, height) => {
+      const format = computed(previewContentObs, content => content && content.format) 
+      return computed([src, width, height, format], (src, width, height, format) => {
         if (!src) {
           if (!placeholder) return h('.tre-image.empty', dragAndDrop(handleFileDrop))
           return placeholder({handleFileDrop})
         }
-        return element({src, width, height, handleFileDrop})
+        return element({src, width, height, format, ctx, handleFileDrop})
       })
     }
     function renderImg(cObs, handleFileDrop) {
       return renderTag(cObs, {
         handleFileDrop,
-        element: ({src, width, height, handleFileDrop}) => {
+        element: renderCustomElement || (({src, width, height, handleFileDrop}) => {
           return h('img.tre-image', Object.assign(dragAndDrop(handleFileDrop), {
             src, width, height
           }))
-        }
+        })
       })
     }
 
@@ -119,11 +119,11 @@ module.exports = function Render(ssb, opts) {
           obs = previewContentObs
         }
         return renderTag(obs, {
-          element: ({src, width, height}) => {
+          element: renderCustomElement || (({src, width, height}) => {
             return h('img.tre-image-thumbnail', {
               src, width, height
             })
-          },
+          }),
           placeholder: ()=> h('.tre-image-thumbnail', {}, 'no thumbnail')
         })
       })

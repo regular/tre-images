@@ -3,6 +3,7 @@ const detect = require('tre-image-size')
 const debug = require('debug')('tre-image:common')
 const FileSource = require('tre-file-importer/file-source')
 const JpegMarkerStream = require('jpeg-marker-stream')
+const BufferList = require('bl')
 
 function JpegParser(cb) {
   let done = false
@@ -81,15 +82,30 @@ function importFiles(ssb, files, opts, cb) {
       return cb(true)
     }
     debug('It is an image!: %O', meta)
-    fileProps.type = `image/${meta.format}` // TODO
+    fileProps.type = `image/${meta.format}`
     let extracted
     //if (!/^image\//.test(file.type)) return cb(true)
     const parser = parseFile(file, {
       meta,
       onExif: e => extracted = e
     })
+    const isSVG = meta.format.toLowerCase().includes('svg')
+    let bl = null
+    if (isSVG) {
+      debug('Image is SVG, will inline if <4k')
+      bl = BufferList()
+    }
     pull(
       parser,
+      pull.through(buff=>{
+        if (bl) {
+          bl.append(buff)
+          if (bl.length > 4*1024) {
+            bl = null
+            debug('SVG is >4k')
+          }
+        }
+      }),
       ssb.blobs.add( (err, hash) => {
         parser.end()
         if (err) return cb(err)
@@ -107,6 +123,10 @@ function importFiles(ssb, files, opts, cb) {
             format: meta && meta.format,
             extractedMeta: extracted,
             blob: hash
+          }
+          if (bl) {
+            debug('SVG is inlined (stored in message JSON')
+            content.svg = bl.toString()
           }
           if (thumbnail) {
             content.thumbnail = {
