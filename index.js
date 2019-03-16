@@ -7,7 +7,6 @@ const watch = require('mutant/watch')
 const setStyle = require('module-styles')('tre-images')
 const debug = require('debug')('tre-image')
 const FileSource = require('tre-file-importer/file-source')
-const {makePane, makeDivider, makeSplitPane} = require('tre-split-pane')
 const BufferList = require('bl')
 const svgDataUri = require('mini-svg-data-uri')
 
