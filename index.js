@@ -33,7 +33,7 @@ module.exports = function Render(ssb, opts) {
     const previewObs = ctx.previewObs || Value(kv)
     const previewContentObs = computed(previewObs, kv => kv && kv.value.content)
     const thumbnailObs = computed(previewContentObs, kv => content && content.thumbnail)
-    
+
     function set(o) {
       ownContentObs.set(Object.assign({}, ownContentObs(), o))
     }
@@ -43,7 +43,6 @@ module.exports = function Render(ssb, opts) {
         set({name: text})
       }
     })
-
 
     if (where == 'editor') {
       return renderEditor()
@@ -95,16 +94,36 @@ module.exports = function Render(ssb, opts) {
           if (!placeholder) return h('.tre-image.empty', dragAndDrop(handleFileDrop))
           return placeholder({handleFileDrop})
         }
+        console.warn(`render ${format} image ${width}x${height}: ${src}`) 
         return element({src, width, height, format, ctx, handleFileDrop})
       })
     }
+    
     function renderImg(cObs, handleFileDrop) {
+      let retry = 0
+      let timerId
+
+      function abort() {
+        if (timerId) {
+          clearTimeout(timerId)
+          timerId = null
+        }
+      }
       return renderTag(cObs, {
         handleFileDrop,
         element: renderCustomElement || (({src, width, height, handleFileDrop}) => {
-          return h('img.tre-image', Object.assign(dragAndDrop(handleFileDrop), {
-            src, width, height
+          let el = h('img.tre-image', Object.assign(dragAndDrop(handleFileDrop), {
+            hooks: [el=>abort],
+            src, width, height,
+            'ev-error': ev =>{
+              console.warn('Error loading image', ev.type)
+              timerId = setTimeout( ()=>{
+                console.warn(`Retry ${retry} to load ${src}`)
+                el.setAttribute('src', src)
+              }, (1<<retry++) * 250)
+            }
           }))
+          return el
         })
       })
     }
