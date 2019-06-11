@@ -94,7 +94,7 @@ module.exports = function Render(ssb, opts) {
           if (!placeholder) return h('.tre-image.empty', dragAndDrop(handleFileDrop))
           return placeholder({handleFileDrop})
         }
-        console.warn(`render ${format} image ${width}x${height}: ${src}`) 
+        //console.warn(`render ${format} image ${width}x${height}: ${src}`) 
         return element({src, width, height, format, ctx, handleFileDrop})
       })
     }
