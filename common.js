@@ -69,7 +69,7 @@ function importFiles(ssb, files, opts, cb) {
   const prototype = prototypes && prototypes.image
   if (!prototype) return cb(new Error('no image prototype'))
   if (files.length>1) {
-    debug('mult-file import is nur supported')
+    debug('mult-file import is not supported')
     return cb(true) // we don't do multiple files
   }
   const file = files[0]
