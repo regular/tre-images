@@ -29,7 +29,7 @@ test('import exif.jpeg', t => {
     }
   }
   file.source = (opts) => {
-    return FileSource({name: join(__dirname,'../exif.jpeg')}, opts)
+    return FileSource({path: join(__dirname,'fixtures/exif.jpeg')}, opts)
   }
 
   importFiles(ssb, [file], opts, (err, result) => {
@@ -77,7 +77,7 @@ test('import beaver.jpg', t => {
     }
   }
   file.source = (opts) => {
-    return FileSource({name: join(__dirname,'../beaver.jpg')}, opts)
+    return FileSource({path: join(__dirname,'fixtures/beaver.jpg')}, opts)
   }
 
   importFiles(ssb, [file], opts, (err, result) => {
@@ -122,7 +122,7 @@ test('import bmp_24.png', t => {
     }
   }
   file.source = (opts) => {
-    return FileSource({name: join(__dirname,'../bmp_24.png')}, opts)
+    return FileSource({path: join(__dirname,'fixtures/bmp_24.png')}, opts)
   }
 
   importFiles(ssb, [file], opts, (err, result) => {
@@ -156,7 +156,7 @@ test('import ball-triangle.svg', t => {
   const file = {
     name: 'a-file-name.svg',
     size: 20,
-    type: 'image/svg',
+    type: 'image/svg+xml',
     lastModified: 2222
   }
   const opts = {
@@ -165,7 +165,7 @@ test('import ball-triangle.svg', t => {
     }
   }
   file.source = (opts) => {
-    return FileSource({name: join(__dirname,'../ball-triangle.svg')}, opts)
+    return FileSource({path: join(__dirname,'fixtures/circle.svg')}, opts)
   }
 
   importFiles(ssb, [file], opts, (err, result) => {
@@ -177,9 +177,9 @@ test('import ball-triangle.svg', t => {
     delete file.source
     t.deepEqual(result.file, file, 'file is our file')
     t.ok(result.name, 'has a name')
-    t.equal(result.width, 57, 'correct width')
-    t.equal(result.format, 'svg', 'correct format')
-    t.equal(result.height, 57, 'correct height')
+    t.equal(result.width, 226, 'correct width')
+    t.equal(result.format, 'svg+xml', 'correct format')
+    t.equal(result.height, 226, 'correct height')
     t.notOk(result.thumbnail, 'has no thumbnail')
     t.end()
   })
