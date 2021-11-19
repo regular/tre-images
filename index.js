@@ -133,10 +133,13 @@ module.exports = function Render(ssb, opts) {
       const isSmall = computed(previewContentObs, c => {
         return c && (c.width < 512 && c.height < 512)
       })
-      return computed([formatObs, isSmall], (format, isSmall) => {
+      const hasThumbnail = computed(previewContentObs, c => {
+        return c && c.thumbnail
+      })
+      return computed([formatObs, isSmall, hasThumbnail], (format, isSmall, hasThumbnail) => {
         if (!format) return []
         let obs = thumbnailObs
-        if (format.includes('svg') || isSmall) {
+        if (format.includes('svg') || isSmall || !hasThumbnail) {
           obs = previewContentObs
         }
         return renderTag(obs, {
