@@ -5,62 +5,75 @@ const FileSource = require('tre-file-importer/file-source')
 const JpegMarkerStream = require('jpeg-marker-stream')
 const BufferList = require('bl')
 
-function JpegParser(cb) {
-  let done = false
-  const parser = JpegMarkerStream()
-  parser.on('error', err => {
-    console.error('Jpeg parse error', err.message)
-    if (done) return
-    done = true
-    cb(err)
-  })
-  parser.on('data', data => {
-    if (done) return
-    debug('jpeg %O', data)
-    if (data.type == 'EXIF') {
-      const exif = data
-      if (exif && exif.exif && exif.exif.MakerNote) {
-        delete exif.exif.MakerNote
-      }
-      cb(null, exif)
-      done = true
-      parser.end()
-    }
-  })
-  function write(buffer) {
-    if (done) return
-    parser.write(Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer))
-  }
-  write.end = function() {
-    parser.end()
-  }
-  return write
+module.exports = {
+  factory,
+  importFiles,
+  parseFile
 }
 
-function extractThumbnail(ssb, file, exif, cb) {
-  const thumbnail = exif && exif.thumbnail
-  //console.log('thumbnail', thumbnail)
-  if (!thumbnail) return cb(null, null)
-  const {ThumbnailOffset, ThumbnailLength} = thumbnail
-  if (!ThumbnailOffset || !ThumbnailLength) return cb(
-    new Error('Missing property in exif.image.thumbnail')
-  )
-  const source = file.source({
-    start: 12 + ThumbnailOffset,
-    end: 12 + ThumbnailOffset + ThumbnailLength
-  })
-  let meta = {}
-  pull(
-    source,
-    parseMeta((err, _meta) => {
-      if (err) console.warn('Problem parsing meta data from thumbnail', err.message)
-      meta = _meta
-    }),
-    ssb.blobs.add((err, blob)=>{
-      if (err) return cb(err)
-      cb(null, {blob, meta})
-    })
-  )
+function factory(config) {
+  const type = 'image'
+  return {
+    type,
+    i18n: {
+      'en': 'Image'
+    },
+    prototype: function() {
+      return {
+        type,
+        width: 0,
+        height: 0,
+        schema: {
+          description: 'An image with meta data',
+          type: 'object',
+          required: ['type', 'width', 'height'],
+          properties: {
+            type: {
+              "const": type
+            },
+            name: { type: 'string' },
+            width: { type: 'number' },
+            height: { type: 'number' },
+            extractedMeta: {
+              type: 'object',
+              properties: {
+                image: {
+                  type: 'object',
+                  properties: {
+                    Make: { type: 'string' },
+                    Model: { type: 'string' },
+                    XResolution: { type: 'number' },
+                    YResolution: { type: 'number' },
+                    Orientation: { type: 'number' }
+                  }
+                },
+                exif: {
+                  type: 'object',
+                  properties: {
+                    ExposureTime: { type: 'number' },
+                    FNumber: { type: 'number' },
+                    ISO: { type: 'number' },
+                    LensModel: { type: 'string' },
+                    BodySerialNumber: { type: 'string' },
+                    FocalLength: { type: 'number' }
+                    //ExifVersion: <Buffer 30 32 31 30>, 
+                    //DateTimeOriginal: 2001-10-02T14:57:31.000Z, 
+                    //DateTimeDigitized: 2001-10-02T14:57:31.000Z, 
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    content: function() {
+      return {
+        type,
+        prototype: config.tre.prototypes[type]
+      }
+    }
+  }
 }
 
 function importFiles(ssb, files, opts, cb) {
@@ -208,79 +221,66 @@ function getMeta(source, cb) {
   }))
 }
 
+function JpegParser(cb) {
+  let done = false
+  const parser = JpegMarkerStream()
+  parser.on('error', err => {
+    console.error('Jpeg parse error', err.message)
+    if (done) return
+    done = true
+    cb(err)
+  })
+  parser.on('data', data => {
+    if (done) return
+    debug('jpeg %O', data)
+    if (data.type == 'EXIF') {
+      const exif = data
+      if (exif && exif.exif && exif.exif.MakerNote) {
+        delete exif.exif.MakerNote
+      }
+      cb(null, exif)
+      done = true
+      parser.end()
+    }
+  })
+  function write(buffer) {
+    if (done) return
+    parser.write(Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer))
+  }
+  write.end = function() {
+    parser.end()
+  }
+  return write
+}
+
+function extractThumbnail(ssb, file, exif, cb) {
+  const thumbnail = exif && exif.thumbnail
+  //console.log('thumbnail', thumbnail)
+  if (!thumbnail) return cb(null, null)
+  const {ThumbnailOffset, ThumbnailLength} = thumbnail
+  if (!ThumbnailOffset || !ThumbnailLength) return cb(
+    new Error('Missing property in exif.image.thumbnail')
+  )
+  const source = file.source({
+    start: 12 + ThumbnailOffset,
+    end: 12 + ThumbnailOffset + ThumbnailLength
+  })
+  let meta = {}
+  pull(
+    source,
+    parseMeta((err, _meta) => {
+      if (err) console.warn('Problem parsing meta data from thumbnail', err.message)
+      meta = _meta
+    }),
+    ssb.blobs.add((err, blob)=>{
+      if (err) return cb(err)
+      cb(null, {blob, meta})
+    })
+  )
+}
+
 function titleize(filename) {
   return filename.replace(/\.\w{3,4}$/, '').replace(/-/g, ' ')
-}
-
-module.exports = {
-  importFiles,
-  factory,
-  parseFile
-}
-
-function factory(config) {
-  const type = 'image'
-  return {
-    type,
-    i18n: {
-      'en': 'Image'
-    },
-    prototype: function() {
-      return {
-        type,
-        width: 0,
-        height: 0,
-        schema: {
-          description: 'An image with meta data',
-          type: 'object',
-          required: ['type', 'width', 'height'],
-          properties: {
-            type: {
-              "const": type
-            },
-            name: { type: 'string' },
-            width: { type: 'number' },
-            height: { type: 'number' },
-            extractedMeta: {
-              type: 'object',
-              properties: {
-                image: {
-                  type: 'object',
-                  properties: {
-                    Make: { type: 'string' },
-                    Model: { type: 'string' },
-                    XResolution: { type: 'number' },
-                    YResolution: { type: 'number' },
-                    Orientation: { type: 'number' }
-                  }
-                },
-                exif: {
-                  type: 'object',
-                  properties: {
-                    ExposureTime: { type: 'number' },
-                    FNumber: { type: 'number' },
-                    ISO: { type: 'number' },
-                    LensModel: { type: 'string' },
-                    BodySerialNumber: { type: 'string' },
-                    FocalLength: { type: 'number' }
-                    //ExifVersion: <Buffer 30 32 31 30>, 
-                    //DateTimeOriginal: 2001-10-02T14:57:31.000Z, 
-                    //DateTimeDigitized: 2001-10-02T14:57:31.000Z, 
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    content: function() {
-      return {
-        type,
-        prototype: config.tre.prototypes[type]
-      }
-    }
-  }
 }
 
 // -- utils
